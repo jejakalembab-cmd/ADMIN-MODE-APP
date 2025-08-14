@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PKB Admin — Login Protected</title>
+
+  <!-- Fonts & SweetAlert2 -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    :root{
+      --bg1:#0f1020; --bg2:#101629; --glass: rgba(255,255,255,.07);
+      --stroke: rgba(255,255,255,.12); --text: #E6E9EF; --muted:#AAB0BC;
+      --brand1:#7C3AED; --brand2:#06B6D4; --ok:#22C55E; --err:#EF4444;
+    }
+    *{box-sizing:border-box}
+    body{
+      font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      margin:0;min-height:100vh;color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 20% -10%, #1a1447 0%, transparent 60%),
+        radial-gradient(900px 400px at 110% 10%, #003e54 0%, transparent 60%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+    }
+    .hidden { display: none; }
+    .head{position:sticky;top:0;padding:18px 16px;background:linear-gradient(90deg, rgba(124,58,237,.35), rgba(6,182,212,.35));backdrop-filter:blur(6px);border-bottom:1px solid var(--stroke);display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{font-weight:800;display:flex;align-items:center;gap:10px}
+    .container{max-width:980px;margin:0 auto;padding:16px}
+    .glass{background:var(--glass);border:1px solid var(--stroke);border-radius:16px;padding:14px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .toolbar{display:grid;gap:12px;grid-template-columns:repeat(2,1fr)}
+    @media(min-width:950px){ .toolbar{grid-template-columns:repeat(3,1fr)} }
+    .btn{cursor:pointer;border-radius:14px;padding:14px;font-weight:700;border:1px solid var(--stroke);display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg, rgba(124,58,237,.25), rgba(6,182,212,.25));transition:.14s}
+    .btn:hover{transform:translateY(-2px);filter:brightness(1.06)}
+    .btn.ok{background:linear-gradient(135deg, rgba(34,197,94,.25), rgba(6,182,212,.12))}
+    .btn.err{background:linear-gradient(135deg, rgba(239,68,68,.25), rgba(124,58,237,.08))}
+    .status{color:var(--muted);font-size:13px;margin-top:8px}
+    .code{margin-top:12px;background:rgba(0,0,0,.35);border:1px solid var(--stroke);border-radius:12px;padding:12px;color:#E6E9EF;font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;white-space:pre-wrap;max-height:50vh;overflow:auto}
+    .foot{color:var(--muted);text-align:center;padding:16px 10px;font-size:12px}
+  </style>
+</head>
+<body>
+
+<!-- Admin Panel dibalut supaya boleh hide sebelum login -->
+<div id="adminPanel" class="hidden">
+  <div class="head">
+    <div class="brand"><span style="font-size:22px">🛠️</span> PKB Admin</div>
+    <div style="font-size:13px;color:var(--muted)">Keep this link private</div>
+  </div>
+
+  <div class="container">
+    <div class="glass">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:800">Status</div>
+          <div id="status" class="status">Siap — automatik terbenam (no login)</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn" id="btnSettings" title="Tukar GitHub settings">⚙️ Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="glass">
+      <div style="font-weight:800;margin-bottom:10px">Actions</div>
+      <div class="toolbar">
+        <button class="btn" id="btnLoad">🔄 Muat Produk</button>
+        <button class="btn ok" id="btnSave">💾 Simpan ke GitHub</button>
+        <button class="btn" id="btnAdd">➕ Tambah Produk</button>
+        <button class="btn" id="btnEditPrice">💲 Tukar Harga</button>
+        <button class="btn" id="btnEditSizes">📏 Set Saiz</button>
+        <button class="btn" id="btnAddColor">🎨 Tambah Warna</button>
+        <button class="btn" id="btnEditMeta">🖼️ Nama/Badge/Gambar</button>
+        <button class="btn err" id="btnDelete">🗑️ Padam Produk</button>
+      </div>
+      <div class="status">Tip: Tekan <b>Muat Produk</b> dahulu → buat perubahan → tekan <b>Simpan ke GitHub</b>.</div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="glass">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:800">Preview Data</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="btnPrettify" style="padding:8px 12px">✨ Prettify</button>
+          <button class="btn" id="btnRefreshView" style="padding:8px 12px">🔁 Refresh</button>
+        </div>
+      </div>
+      <div id="preview" class="code">[]</div>
+    </div>
+
+    <div style="height:10px"></div>
+    <div class="foot">© PKB — Rahsiakan link ini</div>
+  </div>
+</div>
+
+<script>
+/* ========== LOGIN SYSTEM ========== */
+const adminUsers = [
+  { user: "PKBADMIN", pass: "PKB12345" }
+];
+
+async function showLogin() {
+  const { value: formValues } = await Swal.fire({
+    title: 'Login Admin',
+    html:
+      '<input id="swal-user" class="swal2-input" placeholder="Username">' +
+      '<input id="swal-pass" type="password" class="swal2-input" placeholder="Password">',
+    focusConfirm: false,
+    preConfirm: () => {
+      return {
+        u: document.getElementById('swal-user').value.trim(),
+        p: document.getElementById('swal-pass').value.trim()
+      };
+    }
+  });
+
+  if (!formValues) {
+    return showLogin(); // ulang kalau cancel
+  }
+
+  const found = adminUsers.some(a => a.user === formValues.u && a.pass === formValues.p);
+  if (!found) {
+    await Swal.fire('Gagal', 'Username atau password salah!', 'error');
+    return showLogin();
+  }
+
+  // Login berjaya
+  document.getElementById('adminPanel').classList.remove('hidden');
+  Swal.fire('Berjaya', 'Selamat datang, ' + formValues.u, 'success');
+}
+
+// Mula dengan popup login
+showLogin();
+
+/* ========== GITHUB SETTINGS (ganti ikut repo bos) ========== */
+let GH_TOKEN   = "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";     // Token GitHub bos
+let GH_OWNER   = "jejakalembab-cmd";      // Owner repo
+let GH_REPO    = "SHOPPING-PKB-APP";  // Nama repo customer
+let GH_BRANCH  = "main";          // Branch
+const JSON_PATH = "products.json";
+
+/* ========== STATE & HELPERS ========== */
+let products = [];
+let latestSha = null;
+const el = id => document.getElementById(id);
+const rawURL = () => `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${JSON_PATH}`;
+const apiURL = () => `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${JSON_PATH}`;
+const setStatus = t => el("status").innerText = t;
+const refreshView = (pretty=true) => el("preview").innerText = pretty ? JSON.stringify(products, null, 2) : JSON.stringify(products);
+const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
+function noDataAlert(){ Swal.fire('Tiada Data','Tekan Muat Produk dahulu.','info'); return true; }
+
+/* =/* ========== ACTION BUTTONS ========== */
+
+// 1. Muat Produk
+el("btnLoad").onclick = async () => {
+  setStatus("Memuat produk...");
+  try {
+    const res = await fetch(rawURL());
+    if (!res.ok) throw new Error("Gagal muat data");
+    products = await res.json();
+    refreshView();
+    setStatus("Produk dimuat.");
+    // Ambil SHA fail
+    const shaRes = await fetch(apiURL(), { headers: { Authorization: `token ${GH_TOKEN}` } });
+    if (shaRes.ok) {
+      const shaData = await shaRes.json();
+      latestSha = shaData.sha;
+    }
+  } catch (e) {
+    Swal.fire("Error", e.message, "error");
+    setStatus("Gagal memuat produk.");
+  }
+};
+
+// 2. Simpan ke GitHub
+el("btnSave").onclick = async () => {
+  if (!products.length) return noDataAlert();
+  try {
+    setStatus("Menyimpan...");
+    const body = {
+      message: "Update products.json",
+      content: b64(JSON.stringify(products, null, 2)),
+      sha: latestSha || undefined,
+      branch: GH_BRANCH
+    };
+    const res = await fetch(apiURL(), {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${GH_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error("Gagal simpan");
+    Swal.fire("Berjaya", "Produk disimpan ke GitHub", "success");
+    setStatus("Produk disimpan.");
+  } catch (e) {
+    Swal.fire("Error", e.message, "error");
+    setStatus("Gagal menyimpan.");
+  }
+};
+
+// 3. Tambah Produk
+el("btnAdd").onclick = async () => {
+  const { value: form } = await Swal.fire({
+    title: "Tambah Produk Baru",
+    html: `
+      <input id="np" class="swal2-input" placeholder="Nama Produk">
+      <input id="ip" class="swal2-input" placeholder="Link Gambar Utama">
+      <input id="bp" class="swal2-input" placeholder="Badge (optional)">
+      <input id="pp" class="swal2-input" type="number" placeholder="Harga">
+    `,
+    preConfirm: () => ({
+      name: document.getElementById("np").value,
+      image: document.getElementById("ip").value,
+      badge: document.getElementById("bp").value,
+      price: parseFloat(document.getElementById("pp").value) || 0
+    })
+  });
+  if (!form) return;
+  products.push({
+    id: form.name.toLowerCase().replace(/\s+/g, "-"),
+    name: form.name,
+    badge: form.badge,
+    image: form.image,
+    colors: [{ name: "Default", img: form.image, stockPerSize: {} }],
+    sizes: [],
+    price: form.price
+  });
+  refreshView();
+};
+
+// 4. Edit Harga
+el("btnEditPrice").onclick = async () => {
+  if (!products.length) return noDataAlert();
+  const choices = products.map((p, i) => `${i + 1}. ${p.name}`).join("<br>");
+  const { value: idx } = await Swal.fire({
+    title: "Pilih Produk",
+    html: choices + `<input id="idp" type="number" class="swal2-input" placeholder="No Produk">`,
+    preConfirm: () => parseInt(document.getElementById("idp").value) - 1
+  });
+  if (idx < 0 || idx >= products.length) return;
+  const { value: price } = await Swal.fire({
+    title: "Harga Baru",
+    input: "number",
+    inputValue: products[idx].price
+  });
+  products[idx].price = parseFloat(price) || 0;
+  refreshView();
+};
+
+// 5. Set Saiz
+el("btnEditSizes").onclick = async () => {
+  if (!products.length) return noDataAlert();
+  const idx = await pilihProduk();
+  if (idx === null) return;
+  const { value: sizes } = await Swal.fire({
+    title: "Senarai Saiz (pisahkan dengan koma)",
+    input: "text",
+    inputValue: products[idx].sizes.join(", ")
+  });
+  products[idx].sizes = sizes.split(",").map(s => s.trim()).filter(s => s);
+  refreshView();
+};
+
+// 6. Tambah Warna
+el("btnAddColor").onclick = async () => {
+  const idx = await pilihProduk();
+  if (idx === null) return;
+  const { value: col } = await Swal.fire({
+    title: "Tambah Warna",
+    html: `
+      <input id="cn" class="swal2-input" placeholder="Nama Warna">
+      <input id="ci" class="swal2-input" placeholder="Link Gambar">
+    `,
+    preConfirm: () => ({
+      name: document.getElementById("cn").value,
+      img: document.getElementById("ci").value
+    })
+  });
+  products[idx].colors.push({ name: col.name, img: col.img, stockPerSize: {} });
+  refreshView();
+};
+
+// 7. Edit Nama / Badge / Gambar
+el("btnEditMeta").onclick = async () => {
+  const idx = await pilihProduk();
+  if (idx === null) return;
+  const p = products[idx];
+  const { value: meta } = await Swal.fire({
+    title: "Edit Meta",
+    html: `
+      <input id="en" class="swal2-input" value="${p.name}">
+      <input id="eb" class="swal2-input" value="${p.badge || ""}">
+      <input id="ei" class="swal2-input" value="${p.image}">
+    `,
+    preConfirm: () => ({
+      name: document.getElementById("en").value,
+      badge: document.getElementById("eb").value,
+      image: document.getElementById("ei").value
+    })
+  });
+  p.name = meta.name;
+  p.badge = meta.badge;
+  p.image = meta.image;
+  refreshView();
+};
+
+// 8. Padam Produk
+el("btnDelete").onclick = async () => {
+  const idx = await pilihProduk();
+  if (idx === null) return;
+  if (await Swal.fire({ title: "Padam?", text: products[idx].name, showCancelButton: true }) && idx >= 0) {
+    products.splice(idx, 1);
+    refreshView();
+  }
+};
+
+/* Helper pilih produk */
+async function pilihProduk() {
+  if (!products.length) return noDataAlert();
+  let list = products.map((p, i) => `${i + 1}. ${p.name}`).join("<br>");
+  const { value: idx } = await Swal.fire({
+    title: "Pilih Produk (no)",
+    html: list + `<input id="idp" type="number" class="swal2-input" placeholder="No Produk">`,
+    preConfirm: () => parseInt(document.getElementById("idp").value) - 1
+  });
+  return idx >= 0 && idx < products.length ? idx : null;
+}
+
+/* View formatting */
+el("btnPrettify").onclick = () => refreshView(true);
+el("btnRefreshView").onclick = () => refreshView(false);
+
+</script>
+</body>
+</html>
