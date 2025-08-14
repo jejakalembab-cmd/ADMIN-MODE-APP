@@ -185,6 +185,7 @@ el("btnSave").onclick = async () => {
     const body = {
       message: "Update products.json",
       content: b64(JSON.stringify(products, null, 2)),
+      sha: latestSha || "38b40d98ed2e527d4b2509e7bbdc7b9d1c9fe9bf",
       branch: GH_BRANCH
     };
     const res = await fetch(apiURL(), {
